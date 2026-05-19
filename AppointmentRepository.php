@@ -254,4 +254,37 @@ class AppointmentRepository extends AbstractRepository
                 'end_date' => $endDate
             ]);
             
-           
+            return $stmt->fetch();
+            
+        } catch (\PDOException $e) {
+            throw RepositoryException::fromPDOException($e);
+        }
+    }
+    
+    /**
+     * Получение срочных потребностей в крови
+     */
+    public function getUrgentBloodNeeds(): array
+    {
+        try {
+            $sql = "SELECT 
+                    d.blood_type,
+                    d.rh_factor,
+                    COUNT(DISTINCT a.donor_id) as available_donors,
+                    COUNT(CASE WHEN a.status = 'completed' 
+                        AND a.appointment_date >= DATE_SUB(CURRENT_DATE, INTERVAL 60 DAY) 
+                        THEN 1 END) as recent_donations
+                    FROM `donors` d
+                    LEFT JOIN `appointments` a ON d.donor_id = a.donor_id
+                    WHERE d.is_active = TRUE
+                    GROUP BY d.blood_type, d.rh_factor
+                    ORDER BY recent_donations ASC";
+            
+            $stmt = $this->pdo->query($sql);
+            return $stmt->fetchAll();
+            
+        } catch (\PDOException $e) {
+            throw RepositoryException::fromPDOException($e);
+        }
+    }
+}
